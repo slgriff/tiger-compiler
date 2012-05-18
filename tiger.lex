@@ -10,11 +10,17 @@ val commentStartPos = ref 0;
 
 val stringContents = ref ""
 val stringStartPos = ref 0
+val inString = ref false
 
 fun eof() = 
   let 
     val pos = hd(!linePos)
   in 
+    if !commentDepth > 0 then
+      ErrorMsg.error (!commentStartPos) "unclosed comment"
+    else if !inString then
+      ErrorMsg.error (!stringStartPos) "unclosed string"
+    else ();
     Tokens.EOF(pos,pos) 
   end
 
@@ -73,7 +79,9 @@ ws=[ \t\r\n];
 <INITIAL> [0-9]+	=> (Tokens.INT(valOf(Int.fromString(yytext)),yypos,yypos+size(yytext)));
 <INITIAL> {alpha}({alpha}|[0-9]|"_")* => (Tokens.ID(yytext,yypos,yypos+size(yytext)));
 
-<INITIAL> "\"" => (YYBEGIN STRING; stringContents := ""; stringStartPos := yypos; continue());
+<INITIAL> "\"" => (YYBEGIN STRING; stringContents := ""; stringStartPos := yypos; inString := true; continue());
+
+<STRING> \n => (ErrorMsg.error (!stringStartPos) "unclosed string"; lineNum := !lineNum+1; linePos := yypos :: !linePos; continue());
 
 <STRING> \\n => (stringContents := !stringContents ^ "\n"; continue());
 <STRING> \\t => (stringContents := !stringContents ^ "\t"; continue());
@@ -81,7 +89,7 @@ ws=[ \t\r\n];
 <STRING> \\\" => (stringContents := !stringContents ^ "\""; continue());
 <STRING> \\[0-9]{3} => (continue());
 <STRING> \\\^{alpha} => (continue());
-<STRING> "\"" => (YYBEGIN INITIAL; Tokens.STRING(!stringContents,!stringStartPos,yypos+size(!stringContents)));
+<STRING> "\"" => (YYBEGIN INITIAL; inString := false; Tokens.STRING(!stringContents,!stringStartPos,yypos+size(!stringContents)));
 <STRING> \\.+ => (ErrorMsg.error yypos ("illegal ascii escape " ^ yytext); continue());
 
 <STRING> \\ => (YYBEGIN MULTILINE; continue());
@@ -90,8 +98,8 @@ ws=[ \t\r\n];
 <STRING> . => (stringContents := !stringContents ^ yytext; continue());
 
 
-<INITIAL> "/*" => (YYBEGIN COMMENT; commentDepth := !commentDepth+1; continue());
-<COMMENT> "*/" => (commentDepth := !commentDepth-1; if !commentDepth=0 then YYBEGIN INITIAL else (); continue());
+<INITIAL> "/*" => (YYBEGIN COMMENT; commentDepth := !commentDepth+1; commentStartPos := yypos; continue());
+<COMMENT> "*/" => (commentDepth := !commentDepth-1; if !commentDepth = 0 then YYBEGIN INITIAL else (); continue());
 <COMMENT> . => (continue());
 
 .       => (ErrorMsg.error yypos ("illegal character " ^ yytext); continue());
