@@ -118,7 +118,7 @@ ws=[ \t\r\n];
 <STRING> . => (stringContents := !stringContents ^ yytext; continue());
 
 
-<INITIAL> "/*" => (YYBEGIN COMMENT; commentDepth := !commentDepth+1; commentStartPos := yypos; continue());
+<INITIAL,COMMENT> "/*" => (YYBEGIN COMMENT; commentDepth := !commentDepth+1; commentStartPos := yypos; continue());
 <COMMENT> "*/" => (commentDepth := !commentDepth-1; if !commentDepth = 0 then YYBEGIN INITIAL else (); continue());
 <COMMENT> . => (continue());
 
