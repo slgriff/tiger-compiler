@@ -5,17 +5,27 @@ val lineNum = ErrorMsg.lineNum
 val linePos = ErrorMsg.linePos
 fun err(p1,p2) = ErrorMsg.error p1
 
-fun eof() = let val pos = hd(!linePos) in Tokens.EOF(pos,pos) end
+val commentDepth = ref 0
+val commentStartPos = ref 0;
 
-val depth = ref 0
+val stringContents = ref ""
+val stringStartPos = ref 0
+
+fun eof() = 
+  let 
+    val pos = hd(!linePos)
+  in 
+    Tokens.EOF(pos,pos) 
+  end
+
 
 %%
 alpha=[a-zA-Z];
 ws=[ \t\r\n];
-%s COMMENT STRING;
+%s COMMENT STRING MULTILINE;
 %%
-\n	=> (lineNum := !lineNum+1; linePos := yypos :: !linePos; continue());
-<INITIAL> {ws}+ => (continue());
+<INITIAL,COMMENT, MULTILINE> \n	=> (lineNum := !lineNum+1; linePos := yypos :: !linePos; continue());
+<INITIAL, MULTILINE> {ws}+ => (continue());
 
 
 <INITIAL> type => (Tokens.TYPE(yypos,yypos+4));
@@ -63,14 +73,26 @@ ws=[ \t\r\n];
 <INITIAL> [0-9]+	=> (Tokens.INT(valOf(Int.fromString(yytext)),yypos,yypos+size(yytext)));
 <INITIAL> {alpha}({alpha}|[0-9]|"_")* => (Tokens.ID(yytext,yypos,yypos+size(yytext)));
 
-<INITIAL> "\"" => (YYBEGIN STRING; continue());
+<INITIAL> "\"" => (YYBEGIN STRING; stringContents := ""; stringStartPos := yypos; continue());
 
-<STRING> "\"" => (YYBEGIN INITIAL; continue());
+<STRING> \\n => (stringContents := !stringContents ^ "\n"; continue());
+<STRING> \\t => (stringContents := !stringContents ^ "\t"; continue());
+<STRING> \\ => (stringContents := !stringContents ^ "\\"; continue());
+<STRING> \\\" => (stringContents := !stringContents ^ "\""; continue());
+<STRING> \\[0-9]{3} => (continue());
+<STRING> \\\^{alpha} => (continue());
+<STRING> "\"" => (YYBEGIN INITIAL; Tokens.STRING(!stringContents,!stringStartPos,yypos+size(!stringContents)));
+<STRING> \\.+ => (ErrorMsg.error yypos ("illegal ascii escape " ^ yytext); continue());
 
-<INITIAL> "/*" => (YYBEGIN COMMENT; depth := !depth+1; continue());
-<COMMENT> "*/" => (YYBEGIN INITIAL; depth := !depth-1; continue());
+<STRING> \\ => (YYBEGIN MULTILINE; continue());
+<MULTILINE> \\ => (YYBEGIN STRING; continue());
+
+<STRING> . => (stringContents := !stringContents ^ yytext; continue());
+
+
+<INITIAL> "/*" => (YYBEGIN COMMENT; commentDepth := !commentDepth+1; continue());
+<COMMENT> "*/" => (commentDepth := !commentDepth-1; if !commentDepth=0 then YYBEGIN INITIAL else (); continue());
 <COMMENT> . => (continue());
-
 
 .       => (ErrorMsg.error yypos ("illegal character " ^ yytext); continue());
 
