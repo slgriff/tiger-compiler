@@ -85,12 +85,15 @@ ws=[ \t\r\n];
 
 <STRING> \\n => (stringContents := !stringContents ^ "\n"; continue());
 <STRING> \\t => (stringContents := !stringContents ^ "\t"; continue());
-<STRING> \\ => (stringContents := !stringContents ^ "\\"; continue());
+<STRING> \\\\ => (stringContents := !stringContents ^ "\\"; continue());
 <STRING> \\\" => (stringContents := !stringContents ^ "\""; continue());
-<STRING> \\[0-9]{3} => (continue());
-<STRING> \\\^{alpha} => (continue());
+<STRING> \\([0-9]{3}|\^{alpha}) => ((case Char.fromString yytext of
+                                       SOME c => if Char.isAscii c then 
+                                                   stringContents := !stringContents ^ String.str c
+                                                 else ()
+                                     | NONE => ());
+                                     continue());
 <STRING> "\"" => (YYBEGIN INITIAL; inString := false; Tokens.STRING(!stringContents,!stringStartPos,yypos+size(!stringContents)));
-<STRING> \\.+ => (ErrorMsg.error yypos ("illegal ascii escape " ^ yytext); continue());
 
 <STRING> \\ => (YYBEGIN MULTILINE; continue());
 <MULTILINE> \\ => (YYBEGIN STRING; continue());
