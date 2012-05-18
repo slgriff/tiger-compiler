@@ -4,6 +4,8 @@ driver.sml
 errormsg.sml
 tokens.sig
 tokens.sml
-tiger.lex
+tiger.lex: mllex
+
 $/smlnj-lib.cm
 $/basis.cm
+$/ml-yacc-lib.cm

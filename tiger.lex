@@ -87,12 +87,18 @@ ws=[ \t\r\n];
 <STRING> \\t => (stringContents := !stringContents ^ "\t"; continue());
 <STRING> \\\\ => (stringContents := !stringContents ^ "\\"; continue());
 <STRING> \\\" => (stringContents := !stringContents ^ "\""; continue());
-<STRING> \\([0-9]{3}|\^{alpha}) => ((case Char.fromString yytext of
-                                       SOME c => if Char.isAscii c then 
-                                                   stringContents := !stringContents ^ String.str c
-                                                 else ()
-                                     | NONE => ());
-                                     continue());
+<STRING> \\[0-9]{3} => (let
+                          val n = valOf (Int.fromString (String.extract (yytext,1,NONE)))
+                        in
+                          if n < 128 then
+                            stringContents := !stringContents ^ String.str (Char.chr n)
+                          else ErrorMsg.error yypos ("illegal ascii escape " ^ yytext)
+                        end; 
+                        continue());
+<STRING> \\\^{alpha} => (continue());
+<STRING> \\. => (ErrorMsg.error yypos ("illegal ascii escape " ^ yytext); continue());
+
+
 <STRING> "\"" => (YYBEGIN INITIAL; inString := false; Tokens.STRING(!stringContents,!stringStartPos,yypos+size(!stringContents)));
 
 <STRING> \\ => (YYBEGIN MULTILINE; continue());
