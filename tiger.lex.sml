@@ -307,7 +307,23 @@ fun yyAction50 (strm, lastMatch : yymatch) = let
                         end; 
                         continue())
       end
-fun yyAction51 (strm, lastMatch : yymatch) = (yystrm := strm; (continue()))
+fun yyAction51 (strm, lastMatch : yymatch) = let
+      val yytext = yymktext(strm)
+      in
+        yystrm := strm;
+        (let
+                           val c = valOf (Char.fromString (String.extract (yytext,2,NONE)))
+                          in
+                           if ord c > 63 andalso ord c < 96 then
+                             let
+                               val newc = Char.chr (ord c - 64)
+                             in
+                               stringContents := !stringContents ^ String.str newc
+                             end
+                           else ErrorMsg.error yypos ("illegal ascii escape " ^ yytext)
+                         end;
+                         continue())
+      end
 fun yyAction52 (strm, lastMatch : yymatch) = let
       val yytext = yymktext(strm)
       in

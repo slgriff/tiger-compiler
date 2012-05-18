@@ -95,7 +95,18 @@ ws=[ \t\r\n];
                           else ErrorMsg.error yypos ("illegal ascii escape " ^ yytext)
                         end; 
                         continue());
-<STRING> \\\^{alpha} => (continue());
+<STRING> \\\^{alpha} => (let
+                           val c = valOf (Char.fromString (String.extract (yytext,2,NONE)))
+                          in
+                           if ord c > 63 andalso ord c < 96 then
+                             let
+                               val newc = Char.chr (ord c - 64)
+                             in
+                               stringContents := !stringContents ^ String.str newc
+                             end
+                           else ErrorMsg.error yypos ("illegal ascii escape " ^ yytext)
+                         end;
+                         continue());
 <STRING> \\. => (ErrorMsg.error yypos ("illegal ascii escape " ^ yytext); continue());
 
 
