@@ -1,5 +1,7 @@
+type svalue = Tokens.svalue
 type pos = int
-type lexresult = Tokens.token
+type ('a,'b) token = ('a,'b) Tokens.token
+type lexresult = (svalue,pos) token
 
 val lineNum = ErrorMsg.lineNum
 val linePos = ErrorMsg.linePos
@@ -26,6 +28,7 @@ fun eof() =
 
 
 %%
+%header (functor TigerLexFun(structure Tokens: Tiger_TOKENS));
 alpha=[a-zA-Z];
 ws=[ \t\r\n];
 %s COMMENT STRING MULTILINE;
@@ -118,7 +121,8 @@ ws=[ \t\r\n];
 <STRING> . => (stringContents := !stringContents ^ yytext; continue());
 
 
-<INITIAL,COMMENT> "/*" => (YYBEGIN COMMENT; commentDepth := !commentDepth+1; commentStartPos := yypos; continue());
+<INITIAL> "/*" => (YYBEGIN COMMENT; commentDepth := !commentDepth+1; commentStartPos := yypos; continue());
+<COMMENT> "/*" => (commentDepth := !commentDepth+1; continue());
 <COMMENT> "*/" => (commentDepth := !commentDepth-1; if !commentDepth = 0 then YYBEGIN INITIAL else (); continue());
 <COMMENT> . => (continue());
 

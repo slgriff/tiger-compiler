@@ -1,3 +1,4 @@
 syntax: glob
 .cm/*
 *.swp
+*.grm.desc
